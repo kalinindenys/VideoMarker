@@ -18,6 +18,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import javax.imageio.ImageIO;
@@ -29,15 +31,18 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
 
+import static com.denyskalinin.videomarker.controller.MainWindowController.defaultDirectory;
+
 public class ImageEditorWindowController {
     final private double BRUSH_MIN_SIZE = 10;
     final private double BRUSH_MAX_SIZE = 200;
     final private double BRUSH_DEFAULT_SIZE = 20;
 
+    public static double brushSize;
+    public static Color color;
+
     private Image imageToEdit;
     private String videoName;
-    public static Color color;
-    public static double brushSize;
 
 
     @FXML
@@ -69,18 +74,23 @@ public class ImageEditorWindowController {
 
     @FXML
     public void initialize() {
-        color = imageEditorColorPicker.getValue();
+        setColorValueAndListener();
+        setBrushSizeValueAndListener();
+        configureBrushSizeSlider();
+    }
+
+    private void setColorValueAndListener() {
+        setColor(imageEditorColorPicker.getValue());
         imageEditorColorPicker.valueProperty().addListener((observable, oldValue, newValue) -> {
             setColor(newValue);
         });
+    }
+
+    private void setBrushSizeValueAndListener() {
         brushSize = brushSizeSlider.getValue();
         brushSizeSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             brushSize = newValue.doubleValue();
         });
-
-
-        configureBrushSizeSlider();
-
     }
 
     private void configureBrushSizeSlider() {
@@ -89,15 +99,15 @@ public class ImageEditorWindowController {
         brushSizeSlider.setValue(BRUSH_DEFAULT_SIZE);
     }
 
-    public void setImageToEdit(Image imageToEdit) {
+    private void setImageToEdit(Image imageToEdit) {
         this.imageToEdit = imageToEdit;
     }
 
-    public void setColor(Color color) {
+    private void setColor(Color color) {
         ImageEditorWindowController.color = color;
     }
 
-    public void setVideoName(String videoName) {
+    private void setVideoName(String videoName) {
         this.videoName = videoName;
     }
 
@@ -107,17 +117,31 @@ public class ImageEditorWindowController {
         addNewTab();
     }
 
-    public void handleSaveButton() {
-        String imageName = videoName + " " + new SimpleDateFormat("dd-MM-yyyy").format(new Date()) + ".png";
-        File savedImage = new File(imageName);
-        // TODO: 26.10.2016 add filechooser
-        try {
-            ImageIO.write(SwingFXUtils.fromFXImage(imageToEdit, null), "png", savedImage);
-        } catch (IOException e) {
-            System.out.println("lol");
+    public void handleSaveButton() throws IOException {
+        File choosedFile = showDirectoryChooser();
+        if (choosedFile != null) {
+            defaultDirectory = choosedFile;
+            String imageName = videoName + " " + new SimpleDateFormat("dd-MM-yyyy").format(new Date()) + ".png";
+            saveImage(imageName, imageToEdit);
+
+            for (int i = 0; i < imageTabPane.getTabs().size(); i++) {
+                String layerName = "layer " + i + " " + imageName;
+                Image layerImage = imageTabPane.getTabs().get(i).getContent().snapshot(new SnapshotParameters(), null);
+                saveImage(layerName, layerImage);
+            }
         }
+    }
 
+    private File showDirectoryChooser() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Save images...");
+        directoryChooser.setInitialDirectory(defaultDirectory);
+        return directoryChooser.showDialog(imageEditorAnchorPane.getScene().getWindow());
+    }
 
+    private void saveImage(String imageName, Image image) throws IOException {
+        File savedImage = new File(defaultDirectory.getAbsolutePath() + "\\" + imageName);
+        ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", savedImage);
     }
 
     public void handleCancelButton() {
@@ -136,7 +160,9 @@ public class ImageEditorWindowController {
     }
 
     public void handleDeleteLayerButton() {
-        imageTabPane.getTabs().remove(imageTabPane.getSelectionModel().getSelectedIndex());
+        if (imageTabPane.getTabs().size() != 0) {
+            imageTabPane.getTabs().remove(imageTabPane.getSelectionModel().getSelectedIndex());
+        }
     }
 
     private void addNewTab() {

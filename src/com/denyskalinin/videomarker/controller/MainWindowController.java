@@ -14,6 +14,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
@@ -25,9 +26,14 @@ import javax.imageio.ImageIO;
 import java.io.*;
 
 public class MainWindowController {
+    public static File defaultDirectory = new File(System.getProperty("user.home"));
     private String videoName;
+
     @FXML
     AnchorPane mainWindowAnchorPane;
+
+    @FXML
+    GridPane videoPlayerGridPane;
 
     @FXML
     MediaView mainWindowMediaView;
@@ -55,15 +61,12 @@ public class MainWindowController {
 
     @FXML
     public void initialize() {
+        videoPlayerGridPane.setVisible(false);
         markButton.setDisable(true);
     }
 
     public void handleChooseFileButton() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Choose video");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("MP4", "*.mp4"));
-
-        File file = fileChooser.showOpenDialog(mainWindowAnchorPane.getScene().getWindow());
+        File file = getVideoFromFileChooser();
         if (file != null) {
             String videoUri = file.toURI().toString();
             chooseFileTextField.setText(file.getPath());
@@ -84,20 +87,33 @@ public class MainWindowController {
                     videoSlider.setValue(newValue.toSeconds());
                 });
             });
+            videoPlayerGridPane.setVisible(true);
         }
+    }
+
+    private File getVideoFromFileChooser() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Choose video");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("MP4", "*.mp4"));
+
+        return fileChooser.showOpenDialog(mainWindowAnchorPane.getScene().getWindow());
     }
 
     public void handlePlayButton() {
         if (mainWindowMediaView.getMediaPlayer() != null && mainWindowMediaView.getMediaPlayer().getMedia() != null) {
             mainWindowMediaView.getMediaPlayer().play();
+            playButton.setDisable(true);
             markButton.setDisable(true);
+            pauseButton.setDisable(false);
         }
     }
 
     public void handlePauseButton() {
         if (mainWindowMediaView.getMediaPlayer() != null && mainWindowMediaView.getMediaPlayer().getMedia() != null) {
             mainWindowMediaView.getMediaPlayer().pause();
+            pauseButton.setDisable(true);
             markButton.setDisable(false);
+            playButton.setDisable(false);
         }
 
     }
@@ -106,6 +122,8 @@ public class MainWindowController {
         if (mainWindowMediaView.getMediaPlayer() != null && mainWindowMediaView.getMediaPlayer().getMedia() != null) {
             mainWindowMediaView.getMediaPlayer().stop();
             markButton.setDisable(true);
+            pauseButton.setDisable(true);
+            playButton.setDisable(false);
         }
     }
 
@@ -124,7 +142,8 @@ public class MainWindowController {
     }
 
     public void openImageEditorWindow(Image image) throws IOException {
-        videoName += mainWindowMediaView.getMediaPlayer().getCurrentTime().toSeconds();
+        videoName = videoName.concat(String.valueOf(mainWindowMediaView.getMediaPlayer().getCurrentTime().toSeconds()));
+
         Stage imageEditorStage = new Stage();
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(Main.class.getResource("view/ImageEditorWindow.fxml"));
@@ -132,10 +151,12 @@ public class MainWindowController {
         Scene scene = new Scene(root);
         imageEditorStage.setTitle("Image Editor");
         imageEditorStage.setScene(scene);
-        imageEditorStage.show();
 
         ImageEditorWindowController controller = loader.getController();
         controller.setImageData(image, videoName);
+
+        imageEditorStage.showAndWait();
+
 
     }
 }
